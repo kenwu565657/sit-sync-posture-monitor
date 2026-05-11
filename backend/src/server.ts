@@ -1,8 +1,10 @@
-import express, { Request, Response } from 'express';
+import express from 'express';
 import http from 'http';
-import WebSocket, { WebSocketServer } from 'ws';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import { initWebSocket } from './service/websocket.js';
+import hardwareRoutes from './route/hardware.js';
+import dashboardRoutes from './route/dashboard.js';
 
 dotenv.config();
 
@@ -10,56 +12,18 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Create HTTP server
 const server = http.createServer(app);
-const wss = new WebSocketServer({ server });
 
-interface Quaternion {
-    w: number;
-    x: number;
-    y: number;
-    z: number;
-}
+// Initialize WebSockets
+initWebSocket(server);
 
-interface PosturePayload {
-    timestamp: number;
-    device_id: string;
-    sensors: {
-        neck: { quat: Quaternion };
-        back?: { quat: Quaternion };
-    };
-}
+// Mount API Routes
+app.use('/api', hardwareRoutes);             // Maps to /api/telemetry, /api/calibration
+app.use('/api/dashboard', dashboardRoutes);  // Maps to /api/dashboard/today/:userId
 
-// --- WEBSOCKET LOGIC ---
-wss.on('connection', (ws: WebSocket) => {
-    console.log('New Web Client Connected (Three.js)');
-    
-    ws.on('close', () => {
-        console.log('Client Disconnected');
-    });
-});
-
-function broadcastToClients(data: PosturePayload) {
-    wss.clients.forEach((client) => {
-        if (client.readyState === WebSocket.OPEN) {
-            client.send(JSON.stringify(data));
-        }
-    });
-}
-
-// --- REST API LOGIC ---
-app.post('/api/telemetry', (req: Request, res: Response) => {
-    const sensorData = req.body as PosturePayload;
-    
-    console.log(`📡 Received Data from ${sensorData.device_id}`);
-
-    broadcastToClients(sensorData);
-
-    res.status(200).json({ status: 'success', message: 'Data streamed via TS backend' });
-});
-
-// --- START SERVER ---
+// Start Server
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
-    console.log(`Sit-Sync TS Backend running on port ${PORT}`);
-    console.log(`WebSocket server active on ws://localhost:${PORT}`);
+    console.log(`🚀 Sit-Sync API running on port ${PORT}`);
 });
