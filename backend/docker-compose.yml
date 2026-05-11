@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  postgres-sitsync:
+    image: postgres:15-alpine
+    container_name: sitsync_db_container
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: supersecretpassword
+      POSTGRES_DB: sitsync_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - sitsync_pgdata:/var/lib/postgresql/data
+      - ./migration/db/init.sql:/docker-entrypoint-initdb.d/init.sql
+
+volumes:
+  sitsync_pgdata: # This ensures your data isn't deleted when the container stops
