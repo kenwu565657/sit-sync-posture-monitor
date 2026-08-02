@@ -1,0 +1,12 @@
+BEGIN;
+
+CREATE TABLE IF NOT EXISTS posture_event_replays (
+    event_id INTEGER PRIMARY KEY REFERENCES posture_events(id) ON DELETE CASCADE,
+    sample_hz SMALLINT NOT NULL DEFAULT 5 CHECK (sample_hz BETWEEN 1 AND 20),
+    reference_sensors JSONB NOT NULL,
+    frames JSONB NOT NULL,
+    truncated BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+COMMIT;
