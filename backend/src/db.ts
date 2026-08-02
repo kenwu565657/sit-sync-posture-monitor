@@ -1,25 +1,26 @@
 // src/db.ts
 import pkg from 'pg';
 const { Pool } = pkg;
-import dotenv from 'dotenv';
-
-dotenv.config();
+import { config } from './config.js';
+import { errorFields, logger } from './logger.js';
 
 const pool = new Pool({
-    user: process.env.DB_USER,
-    host: process.env.DB_HOST,
-    database: process.env.DB_NAME,
-    password: process.env.DB_PASSWORD,
-    port: parseInt(process.env.DB_PORT || '5432'),
+    user: config.db.user,
+    host: config.db.host,
+    database: config.db.name,
+    password: config.db.password,
+    port: config.db.port,
+    ssl: config.db.tls
+        ? { rejectUnauthorized: config.db.tlsRejectUnauthorized }
+        : undefined,
 });
 
 pool.on('connect', () => {
-    console.log('Connected to PostgreSQL Database');
+    logger.debug('database_connected');
 });
 
 pool.on('error', (err) => {
-    console.error('Unexpected error on idle client', err);
-    process.exit(-1);
+    logger.error('database_idle_client_error', errorFields(err));
 });
 
 export default pool;
