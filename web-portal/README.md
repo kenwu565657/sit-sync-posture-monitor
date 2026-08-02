@@ -1,73 +1,45 @@
-# React + TypeScript + Vite
+# Sit-Sync web portal
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+The Vite application contains two intentionally separate experiences:
 
-Currently, two official plugins are available:
+- `/` — public product showcase
+- `/#/login` — user login
+- `/#/app` — protected live monitor
+- `/#/dashboard`, `/#/calendar`, `/#/report`, `/#/settings` — protected pages
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+Hash routing keeps direct refreshes compatible with static S3 hosting. Protected
+portal pages are loaded as separate chunks, so the public page does not
+immediately load the 3D monitor.
 
-## React Compiler
+## Local development
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```sh
+npm install
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Configuration
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+Create a local `.env` as needed:
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```text
+VITE_API_BASE_URL=https://api.example.com
+VITE_WS_URL=wss://api.example.com
+VITE_DEMO_VIDEO_URL=https://cdn.example.com/sit-sync-demo.mp4
 ```
+
+`VITE_DEMO_VIDEO_URL` is optional. Without it, the showcase renders an explicit
+video placeholder with replacement instructions. Keep large videos in S3,
+CloudFront, or a streaming service rather than in the JavaScript bundle.
+
+## Build and deploy
+
+```sh
+npm run lint
+npm run build
+aws s3 sync dist "s3://YOUR_BUCKET" --delete
+```
+
+Invalidate CloudFront after replacing the static files. Product result values
+and evidence labels live in `src/content/productResults.ts`; update them only
+when their supporting evaluation evidence changes.

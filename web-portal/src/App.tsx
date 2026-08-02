@@ -1,71 +1,152 @@
-import { Canvas } from '@react-three/fiber';
-import { OrbitControls, Environment } from '@react-three/drei';
-import Switch from '@mui/material/Switch';
-import { usePostureSocket } from './hooks/usePostureSocket';
-import Avatar3D from './components/Avatar3D';
+import React, { lazy, Suspense } from 'react';
+import {
+    HashRouter as Router,
+    Routes,
+    Route,
+    Link,
+    useLocation,
+    Navigate,
+    useNavigate,
+    Outlet,
+} from 'react-router-dom';
+import { clearWebSession, getWebToken, getWebUser } from './auth/webSession';
+import ProductPage from './page/ProductPage';
 
-function App() {
-    const { postureData, isConnected } = usePostureSocket('ws://localhost:8787');
+const StreamPage = lazy(() => import('./page/StreamPage'));
+const DashboardPage = lazy(() => import('./page/DashboardPage'));
+const SettingPage = lazy(() => import('./page/SettingPage'));
+const PostureReportPage = lazy(() => import('./page/ClinicianReportPage'));
+const CalendarPage = lazy(() => import('./page/CalendarPage'));
+const LoginPage = lazy(() => import('./page/LoginPage'));
+
+function ProtectedLayout() {
+    const token = getWebToken();
+
+    if (!token) {
+        return <Navigate to="/login" replace />;
+    }
 
     return (
-        // Tailwind Grid: Splits screen into 2 columns (3D on left, UI on right)
-        <div className="flex h-screen w-screen bg-slate-900 text-slate-100 font-sans">
-            
-            {/* LEFT PANEL: 3D Visualization */}
-            <div className="relative flex-grow w-2/3">
-                
-                {/* Connection Badge (Tailwind styling) */}
-                <div className={`absolute top-6 left-6 z-10 px-4 py-2 rounded-full font-bold shadow-lg ${isConnected ? 'bg-green-700 text-green-100' : 'bg-red-700 text-red-100'}`}>
-                    {isConnected ? '🟢 Live Sync Active' : '🔴 Disconnected'}
-                </div>
-
-                <Canvas camera={{ position: [3, 2, 5], fov: 50 }}>
-                    <ambientLight intensity={0.5} />
-                    <directionalLight position={[10, 10, 5]} intensity={1} />
-                    <Environment preset="city" />
-                    <Avatar3D 
-                        neckQuat={postureData?.sensors.neck.quat} 
-                        status={postureData?.metrics.status} 
-                    />
-                    <OrbitControls enablePan={false} />
-                </Canvas>
-            </div>
-
-            {/* RIGHT PANEL: Ergonomic Metrics */}
-            <div className="w-1/3 min-w-[400px] p-10 border-l border-slate-700 flex flex-col gap-6 overflow-y-auto">
-                
-                <div className="flex justify-between items-center mb-4">
-                    <h1 className="text-3xl font-bold tracking-tight">Sit-Sync Portal</h1>
-                    
-                    {/* Example of MUI mixing with Tailwind layout */}
-                    <div className="flex items-center gap-2">
-                        <span className="text-sm text-slate-400">Auto-Calibrate</span>
-                        <Switch color="primary" /> 
-                    </div>
-                </div>
-                
-                {/* Metric Card 1 */}
-                <div className="p-6 bg-slate-800 rounded-2xl shadow-xl border border-slate-700">
-                    <p className="text-slate-400 font-medium uppercase tracking-wider text-sm">Real-Time RULA Score</p>
-                    <h2 className="text-6xl font-black mt-2 mb-1">
-                        {postureData?.metrics.rula_score || '-'}
-                    </h2>
-                    <p className="text-lg">
-                        Status: <strong className="uppercase text-amber-400">{postureData?.metrics.status || 'Waiting...'}</strong>
-                    </p>
-                </div>
-
-                {/* Metric Card 2 */}
-                <div className="p-6 bg-slate-800 rounded-2xl shadow-xl border border-slate-700">
-                    <p className="text-slate-400 font-medium uppercase tracking-wider text-sm">Craniovertebral Angle</p>
-                    <h2 className="text-5xl font-bold mt-2">
-                        {postureData?.metrics.cva_angle ? `${postureData.metrics.cva_angle.toFixed(1)}°` : '--°'}
-                    </h2>
-                </div>
-
-            </div>
+        <div style={styles.appContainer}>
+            <NavBar />
+            <main style={styles.pageContent}>
+                <Outlet />
+            </main>
         </div>
     );
 }
 
-export default App;
+function NavBar() {
+    const location = useLocation();
+    const navigate = useNavigate();
+    const user = getWebUser();
+
+    const logout = () => {
+        clearWebSession();
+        navigate('/login', { replace: true });
+    };
+
+    return (
+        <nav style={styles.navbar}>
+            <Link to="/" style={styles.logo}>
+                <img src="/sit-sync-logo.png" alt="" style={styles.logoImage} />
+                <span>Sit-Sync Web Portal</span>
+            </Link>
+            <div style={styles.navArea}>
+                <div style={styles.navLinks}>
+
+                    <Link
+                        to="/app"
+                        style={{ ...styles.link, ...(location.pathname === '/app' ? styles.activeLink : {}) }}
+                    >
+                        🔴 Live Monitor
+                    </Link>
+                    <Link
+                        to="/dashboard"
+                        style={{ ...styles.link, ...(location.pathname === '/dashboard' ? styles.activeLink : {}) }}
+                    >
+                        📊 Analytics
+                    </Link>
+                    <Link
+                        to="/settings"
+                        style={{ ...styles.link, ...(location.pathname === '/settings' ? styles.activeLink : {}) }}
+                    >
+                        ⚙️ Settings
+                    </Link>
+                    <Link
+                        to="/report"
+                        style={{ ...styles.link, ...(location.pathname === '/report' ? styles.activeLink : {}) }}
+                    >
+                        📝 Posture Report
+                    </Link>
+                    <Link
+                        to="/calendar"
+                        style={{ ...styles.link, ...(location.pathname === '/calendar' ? styles.activeLink : {}) }}
+                    >
+                        📅 History
+                    </Link>
+                </div>
+                <div style={styles.userArea}>
+                    <div style={styles.userText}>
+                        <strong style={styles.userName}>{user?.name ?? 'Signed in'}</strong>
+                        {user?.email && <span style={styles.userEmail}>{user.email}</span>}
+                    </div>
+                    <button type="button" onClick={logout} style={styles.logoutButton}>
+                        Log out
+                    </button>
+                </div>
+            </div>
+        </nav>
+    );
+}
+
+function PortalLoading() {
+    return (
+        <div style={styles.loading}>
+            <span>Loading Sit-Sync…</span>
+        </div>
+    );
+}
+
+export default function App() {
+    return (
+        <Router>
+            <Suspense fallback={<PortalLoading />}>
+                    <Routes>
+                        <Route path="/" element={<ProductPage />} />
+                        <Route path="/login" element={<LoginPage />} />
+                        <Route element={<ProtectedLayout />}>
+                            <Route path="/app" element={<StreamPage />} />
+                            <Route path="/dashboard" element={<DashboardPage />} />
+                            <Route path="/settings" element={<SettingPage />} />
+                            <Route path="/report" element={<PostureReportPage />} />
+                            <Route path="/calendar" element={<CalendarPage />} />
+                        </Route>
+                        <Route
+                            path="/weekly-recap"
+                            element={<Navigate to="/report" replace />}
+                        />
+                        <Route path="*" element={<Navigate to="/" replace />} />
+                    </Routes>
+            </Suspense>
+        </Router>
+    );
+}
+
+const styles: { [key: string]: React.CSSProperties } = {
+    appContainer: { minHeight: '100vh', backgroundColor: '#0f172a', fontFamily: 'sans-serif' },
+    navbar: { display: 'flex', justifyContent: 'space-between', gap: '24px', padding: '15px 30px', backgroundColor: '#1e293b', borderBottom: '1px solid #334155', alignItems: 'center', flexWrap: 'wrap' },
+    logo: { display: 'flex', alignItems: 'center', gap: '10px', color: 'white', fontSize: '20px', fontWeight: 'bold', textDecoration: 'none' },
+    logoImage: { width: '38px', height: '38px', borderRadius: '10px', objectFit: 'cover' },
+    navArea: { display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '20px', flex: 1, flexWrap: 'wrap' },
+    navLinks: { display: 'flex', gap: '10px', flexWrap: 'wrap', justifyContent: 'flex-end' },
+    link: { color: '#94a3b8', textDecoration: 'none', fontSize: '16px', padding: '8px 12px', borderRadius: '6px', transition: 'all 0.2s' },
+    activeLink: { backgroundColor: '#38bdf8', color: '#0f172a', fontWeight: 'bold' },
+    userArea: { display: 'flex', alignItems: 'center', gap: '12px', paddingLeft: '20px', borderLeft: '1px solid #475569' },
+    userText: { display: 'flex', flexDirection: 'column', alignItems: 'flex-end', minWidth: '100px' },
+    userName: { color: '#f8fafc', fontSize: '14px' },
+    userEmail: { color: '#94a3b8', fontSize: '12px' },
+    logoutButton: { backgroundColor: '#7f1d1d', color: '#fecaca', border: '1px solid #b91c1c', padding: '8px 12px', borderRadius: '6px', fontSize: '14px', fontWeight: 'bold', cursor: 'pointer' },
+    pageContent: { boxSizing: 'border-box', width: '100%', padding: '20px', overflowX: 'hidden' },
+    loading: { display: 'grid', minHeight: '100vh', placeItems: 'center', color: '#cbd5e1', backgroundColor: '#07111f', fontFamily: 'sans-serif' },
+};
